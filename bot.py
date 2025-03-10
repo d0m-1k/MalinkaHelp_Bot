@@ -224,4 +224,5 @@ def get_logs(page=0, limit=10):
 
 if __name__ == "__main__":
     print(f"Bot login as @{bot.user.username}")
+    print("Бот сделан на заказ для TG: https://t.me/f15999")
     bot.polling(none_stop=True)
