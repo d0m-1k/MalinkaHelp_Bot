@@ -9,6 +9,9 @@ sudo pacman -S python    # Arch Linux
 git clone https://github.com/d0m-1k/MalinkaHelp_Bot.git
 cd MalinkaHelp_Bot
 python3 -m venv venv
+source venv/bin/activate      # bash/zsh
+source venv/bin/activate.fish # fish
+pip install -r requirements.txt
 ```
 ### windows
 Думайте сами
@@ -16,8 +19,8 @@ python3 -m venv venv
 ## Запуск
 ### linux
 ```
-source venv/bin/actiate      # bash/zsh
-source venv/bin/actiate.fish # fish
+source venv/bin/activate      # bash/zsh
+source venv/bin/activate.fish # fish
 python3 bot.py
 ```
 ### windows
