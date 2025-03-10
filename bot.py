@@ -22,11 +22,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS logs
                    action TEXT,
                    timestamp TEXT)''')
 
-cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   user_id INTEGER,
-                   username TEXT)''')
-
 cursor.execute('''CREATE TABLE IF NOT EXISTS admins
                   (id INTEGER PRIMARY KEY AUTOINCREMENT,
                    user_id INTEGER)''')
@@ -138,11 +133,11 @@ def add_user(message):
 
     try:
         username = message.text.split()[2]
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT * FROM admins WHERE username = ?", (username,))
         if cursor.fetchone():
             bot.reply_to(message, lang["user_already_added"].format(username=username))
         else:
-            cursor.execute("INSERT INTO users (username) VALUES (?)", (username,))
+            cursor.execute("INSERT INTO admins (username) VALUES (?)", (username,))
             conn.commit()
             bot.reply_to(message, lang["user_added"].format(username=username))
     except IndexError:
@@ -157,9 +152,9 @@ def remove_user(message):
 
     try:
         username = message.text.split()[2]
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT * FROM admins WHERE username = ?", (username,))
         if cursor.fetchone():
-            cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+            cursor.execute("DELETE FROM admins WHERE username = ?", (username,))
             conn.commit()
             bot.reply_to(message, lang["user_removed"].format(username=username))
         else:
