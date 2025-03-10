@@ -33,6 +33,13 @@ conn.commit()
 user_job_start_time = {}
 user_log_page = {}
 
+def get_admins():
+    raw = cursor.execute("SELECT * FROM admins").fetchall()
+    admins = []
+    for admin in raw:
+        admins.append(admin[1])
+    return admins
+
 @bot.message_handler(commands=['помощь'])
 def send_help(message):
     bot.reply_to(message, lang["help_text"])
@@ -42,6 +49,10 @@ def job_command(message):
     user_id = message.from_user.id
     username = message.from_user.username
     command = message.text.split()[1]
+
+    if user_id not in get_admins():
+        bot.reply_to(message, lang["no_permission"])
+        return
 
     if command == 'начать':
         if user_id in user_job_start_time:
@@ -66,6 +77,11 @@ def job_command(message):
 def accept_player(message):
     user_id = message.from_user.id
     username = message.from_user.username
+
+    if user_id not in get_admins():
+        bot.reply_to(message, lang["no_permission"])
+        return
+
     try:
         player_nickname = message.text.split()[1]
         log_action(user_id, f"пользователь: @{username} принял игрока: {player_nickname}")
@@ -76,7 +92,8 @@ def accept_player(message):
 @bot.message_handler(commands=['получить'])
 def send_logs_file(message):
     user_id = message.from_user.id
-    if user_id not in ADMINS:
+
+    if user_id not in get_admins():
         bot.reply_to(message, lang["no_permission"])
         return
 
@@ -88,7 +105,8 @@ def send_logs_file(message):
 @bot.message_handler(commands=['логи'])
 def send_logs(message):
     user_id = message.from_user.id
-    if user_id not in ADMINS:
+
+    if user_id not in get_admins():
         bot.reply_to(message, lang["no_permission"])
         return
 
@@ -105,15 +123,17 @@ def send_logs(message):
 
     markup = types.InlineKeyboardMarkup()
     if user_log_page[user_id] > 0:
-        markup.add(types.InlineKeyboardButton("⬅️ Назад", callback_data="prev_page"))
+        markup.add(types.InlineKeyboardButton("⬅ Назад", callback_data="prev_page"))
     if len(logs) == 10:
-        markup.add(types.InlineKeyboardButton("➡️ Вперед", callback_data="next_page"))
+        markup.add(types.InlineKeyboardButton("➡ Вперед", callback_data="next_page"))
     bot.send_message(message.chat.id, lang["logs_page"].format(page=user_log_page[user_id] + 1), reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_pagination(call):
     user_id = call.from_user.id
-    if user_id not in ADMINS:
+
+    if user_id not in get_admins():
+        bot.reply_to(message, lang["no_permission"])
         return
 
     if call.data == "prev_page":
@@ -132,16 +152,18 @@ def add_user(message):
         return
 
     try:
-        username = message.text.split()[2]
-        cursor.execute("SELECT * FROM admins WHERE username = ?", (username,))
-        if cursor.fetchone():
-            bot.reply_to(message, lang["user_already_added"].format(username=username))
+        userid = int(message.text.split()[2])
+        cursor.execute("SELECT * FROM admins WHERE user_id = ?", (userid,))
+        if len(cursor.fetchall()) >= 0:
+            bot.reply_to(message, lang["user_already_added"].format(userid=userid))
         else:
-            cursor.execute("INSERT INTO admins (username) VALUES (?)", (username,))
+            cursor.execute("INSERT INTO admins (user_id) VALUES (?)", (userid,))
             conn.commit()
-            bot.reply_to(message, lang["user_added"].format(username=username))
+            bot.reply_to(message, lang["user_added"].format(userid=userid))
     except IndexError:
-        bot.reply_to(message, "Укажите username.")
+        bot.reply_to(message, "Укажите userid.")
+    except ValueError:
+        bot.reply_to(message, "Вы указали не userid")
 
 @bot.message_handler(commands=['удалить'])
 def remove_user(message):
@@ -151,16 +173,38 @@ def remove_user(message):
         return
 
     try:
-        username = message.text.split()[2]
-        cursor.execute("SELECT * FROM admins WHERE username = ?", (username,))
-        if cursor.fetchone():
-            cursor.execute("DELETE FROM admins WHERE username = ?", (username,))
+        userid = int(message.text.split()[2])
+        cursor.execute("SELECT * FROM admins WHERE user_id = ?", (userid,))
+        if len(cursor.fetchall()) >= 0:
+            cursor.execute("DELETE FROM admins WHERE user_id = ?", (userid,))
             conn.commit()
-            bot.reply_to(message, lang["user_removed"].format(username=username))
+            bot.reply_to(message, lang["user_removed"].format(userid=userid))
         else:
-            bot.reply_to(message, lang["user_not_found"].format(username=username))
+            bot.reply_to(message, lang["user_not_found"].format(userid=userid))
     except IndexError:
-        bot.reply_to(message, "Укажите username.")
+        bot.reply_to(message, "Укажите userid.")
+    except ValueError:
+        bot.reply_to(message, "Вы указали не userid")
+
+@bot.message_handler(commands=['очистить'])
+def clear_logs(message):
+    user_id = message.from_user.id
+
+    if user_id not in ADMINS:
+        bot.reply_to(message, lang["no_permission"])
+        return
+
+    command = message.text.split()[1]
+    if command == 'логи':
+        cursor.execute("DELETE FROM logs")
+        conn.commit()
+        with open('logs.txt', 'w') as log_file:
+            log_file.write("")
+        bot.reply_to(message, lang["logs_cleared"])
+
+@bot.message_handler(commands=['id'])
+def get_id(message):
+    bot.reply_to(message, f"`{message.from_user.id}`", parse_mode="markdown")
 
 def log_action(user_id, action):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
